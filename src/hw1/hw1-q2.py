@@ -1,14 +1,13 @@
 import snap
 import math
+import numpy as np
 
 
 def getLocalFeatures(Node, Graph):
-    dgree = Node.GetDeg()
-    Neibors = []
-    ei = 0
-    InEdgeEgonet = 0
-    for i in range(0, Node.GetDeg()):
-        Neibors.append(Node.GetNbrNId(i))
+    dgree = float(Node.GetDeg())
+    Neibors = getNeibors(Node)
+    ei = 0.0
+    InEdgeEgonet = 0.0
     Neibors.append(Node.GetId())
     for E1 in Neibors:
         for E2 in Neibors:
@@ -23,21 +22,55 @@ def getLocalFeatures(Node, Graph):
     return dgree, ei, InEdgeEgonet
 
 
-def getAllNodesLocalFeatures(Graph):
+def getNeibors(Node):
+    Neibors = []
+    for i in range(0, Node.GetDeg()):
+        Neibors.append(Node.GetNbrNId(i))
+    return Neibors
+
+
+def getAllNodesLocalFeatures(Graph, k):
     NodeFeatureList = []
     for Node in Graph.Nodes():
+        vector = []
         degree, ei, InEdgeEgonet = getLocalFeatures(Node, Graph)
-        NodeFeatureList.append({Node.GetId(): {"degree": degree, "ei": ei, "InEdgeEgonet": InEdgeEgonet}})
+        vector.extend([Node.GetId(), degree, ei, InEdgeEgonet])
+        NodeFeatureList.append(vector)
+    for i in range(0, k):
+        for Node in Graph.Nodes():
+            CurNodeId = Node.GetId()
+            Neibors = getNeibors(Node)
+            sum_list = []
+            mean_list = []
+            for j in range(1, len(NodeFeatureList[CurNodeId])):
+                sum_list.append(0)
+                mean_list.append(0)
+            for NodeId in Neibors:
+                for j in range(1, len(NodeFeatureList[CurNodeId])):
+                    sum_list[j - 1] += NodeFeatureList[NodeId][j]
+            if len(Neibors) != 0:
+                NodeFeatureList[CurNodeId].extend(sum_list)
+                mean_list = sum_list[:]
+                for j in range(0, len(mean_list)):
+                    mean_list[j] = mean_list[j] / len(Neibors)
+                NodeFeatureList[CurNodeId].extend(mean_list)
+            else:
+                NodeFeatureList[CurNodeId].extend(mean_list)
+                NodeFeatureList[CurNodeId].extend(mean_list)
     return NodeFeatureList
 
 
 def getSim(Nodea, Nodeb, NodeFeatureList):
-    FeatureX = NodeFeatureList[Nodea].get(Nodea)
-    FeatureY = NodeFeatureList[Nodeb].get(Nodeb)
+    FeatureX = NodeFeatureList[Nodea]
+    FeatureY = NodeFeatureList[Nodeb]
     Sim = 0.0
-    t1 = FeatureX.get("degree") * FeatureY.get("degree") +FeatureX.get("ei") * FeatureY.get("ei") + FeatureX.get("InEdgeEgonet") * FeatureY.get("InEdgeEgonet")
-    t2 = math.pow(FeatureX.get("degree"), 2) + math.pow(FeatureX.get("ei"), 2) + math.pow(FeatureX.get("InEdgeEgonet"), 2)
-    t3 = math.pow(FeatureY.get("degree"), 2) + math.pow(FeatureY.get("ei"), 2) + math.pow(FeatureY.get("InEdgeEgonet"), 2)
+    t1 = 0
+    t2 = 0
+    t3 = 0
+    for i in range(1, len(NodeFeatureList[0])):
+        t1 += FeatureX[i] * FeatureY[i]
+        t2 += math.pow(FeatureX[i], 2)
+        t3 += math.pow(FeatureY[i], 2)
     if t2 == 0 or t3 == 0:
         return 0
     else:
@@ -45,18 +78,26 @@ def getSim(Nodea, Nodeb, NodeFeatureList):
         return Sim
 
 
+k = 6
 FIn = snap.TFIn("hw1-q2.graph")
 Graph = snap.TUNGraph.Load(FIn)
-NodeFeatureList = getAllNodesLocalFeatures(Graph)
+NodeFeatureList = getAllNodesLocalFeatures(Graph, k)
 SimList = []
 for node in Graph.Nodes():
     if node.GetId() != 9:
-        SimList.append({'nodeId': node.GetId(), 'Sim': getSim(9, node.GetId(), NodeFeatureList)})
-for i in range(0,len(SimList)):
-    for j in range(0,i):
-        if SimList[i].get('Sim') > SimList[j].get('Sim'):
-            temp = SimList[j]
-            SimList[j] = SimList[i]
-            SimList[i] = temp
-for i in range(0, 5):
+        SimList.append([node.GetId(), getSim(9, node.GetId(), NodeFeatureList)])
+
+
+# here we sort by sim
+def takeSecond(elem):
+    return elem[1]
+
+
+SimList.sort(key=takeSecond, reverse=True)
+i = 0
+for j in range(0, 5):
     print(SimList[i])
+    while SimList[i + 1][1] == SimList[i][1]:
+        # print(SimList[i + 1])
+        i += 1
+    i += 1
