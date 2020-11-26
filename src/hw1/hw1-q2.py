@@ -1,6 +1,7 @@
 import snap
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def getLocalFeatures(Node, Graph):
@@ -78,7 +79,7 @@ def getSim(Nodea, Nodeb, NodeFeatureList):
         return Sim
 
 
-k = 6
+k = 2
 FIn = snap.TFIn("hw1-q2.graph")
 Graph = snap.TUNGraph.Load(FIn)
 NodeFeatureList = getAllNodesLocalFeatures(Graph, k)
@@ -86,7 +87,6 @@ SimList = []
 for node in Graph.Nodes():
     if node.GetId() != 9:
         SimList.append([node.GetId(), getSim(9, node.GetId(), NodeFeatureList)])
-
 
 # here we sort by sim
 def takeSecond(elem):
@@ -101,3 +101,12 @@ for j in range(0, 5):
         # print(SimList[i + 1])
         i += 1
     i += 1
+
+data = []
+for item in SimList:
+    data.append(item[1])
+
+plt.hist(data, bins=20, range=(0, 1),rwidth=0.8)
+plt.xlabel("cosine similarity with node 9")
+plt.ylabel("the number of nodes")
+plt.show()
